@@ -1,37 +1,15 @@
-export interface Env {
-  // Secrets
-  DATABASE_URL: string;
-  DATABASE_AUTH_TOKEN: string;
-  ADMIN_API_KEY: string;
+// src/config/env.ts
+import { z } from 'zod';
 
-  // Vars
-  R2_PUBLIC_URL: string;
-  MAX_IMAGE_SIZE: string;
-  MAX_VIDEO_SIZE: string;
+export const envSchema = z.object({
+  DATABASE_URL: z.string().url(),
+  DATABASE_AUTH_TOKEN: z.string().min(1),
+  ADMIN_API_KEY: z.string().min(16),
+  R2_PUBLIC_URL: z.string().url(),
+  MAX_IMAGE_SIZE: z.coerce.number().default(10 * 1024 * 1024),
+  MAX_VIDEO_SIZE: z.coerce.number().default(100 * 1024 * 1024),
+});
 
-  // R2 binding (from wrangler.toml)
+export type Env = z.infer<typeof envSchema> & {
   R2: R2Bucket;
-}
-
-export function validateEnv(env: Env): void {
-  const required = [
-    'DATABASE_URL',
-    'DATABASE_AUTH_TOKEN',
-    'ADMIN_API_KEY',
-    'R2_PUBLIC_URL'
-  ];
-
-  for (const key of required) {
-    if (!(env as any)[key]) {
-      throw new Error(`Missing required env: ${key}`);
-    }
-  }
-
-  if (!env.R2) {
-    throw new Error('R2 bucket binding not configured');
-  }
-
-  if (!env.DATABASE_URL.startsWith('libsql://')) {
-    throw new Error('DATABASE_URL must be a Turso libsql:// URL');
-  }
-}
+};
