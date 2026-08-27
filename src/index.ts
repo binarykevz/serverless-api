@@ -2,6 +2,7 @@ import { app } from './app';
 import type { Env } from './config/env';
 import { validateEnv } from './config/env';
 import { ensureDatabaseSchema } from './db/init';
+export default app;
 
 let schemaInitialized = false;
 
