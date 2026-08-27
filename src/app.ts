@@ -1,44 +1,41 @@
-import { Elysia } from 'elysia';
-import { cors } from '@elysiajs/cors';
+// src/app.ts
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { images } from './routes/images';
 import { videos } from './routes/videos';
-import { health } from './routes/health';
 import { AppError } from './utils/errors';
+import type { Env } from './config/env';
 
-export const app = new Elysia()
-  .use(cors())
-  .use(health)
-  .use(images)
-  .use(videos)
-  .onError(({ code, error, set }) => {
-    if (error instanceof AppError) {
-      set.status = error.statusCode;
-      return {
-        success: false,
-        error: { code: error.code, message: error.message }
-      };
-    }
+const app = new Hono<{ Bindings: Env }>();
 
-    if (code === 'NOT_FOUND') {
-      set.status = 404;
-      return {
-        success: false,
-        error: { code: 'NOT_FOUND', message: 'Endpoint does not exist.' }
-      };
-    }
+app.use('*', cors());
 
-    if (code === 'VALIDATION') {
-      set.status = 400;
-      return {
-        success: false,
-        error: { code: 'VALIDATION_ERROR', message: error.message }
-      };
-    }
+app.get('/', (c) => c.json({ success: true, message: 'Media API is running on Cloudflare Workers' }));
+app.get('/health', (c) => c.json({ success: true, status: 'ok' }));
 
-    console.error('Unhandled error:', error);
-    set.status = 500;
-    return {
+app.route('/api/images', images);
+app.route('/api/videos', videos);
+
+app.onError((err, c) => {
+  if (err instanceof AppError) {
+    return c.json({
       success: false,
-      error: { code: 'INTERNAL_SERVER_ERROR', message: 'An unexpected error occurred' }
-    };
-  });
+      error: { code: err.code, message: err.message }
+    }, err.statusCode as any);
+  }
+  
+  console.error('Unhandled error:', err);
+  return c.json({
+    success: false,
+    error: { code: 'INTERNAL_SERVER_ERROR', message: 'An unexpected error occurred' }
+  }, 500);
+});
+
+app.notFound((c) => {
+  return c.json({
+    success: false,
+    error: { code: 'NOT_FOUND', message: 'Endpoint does not exist' }
+  }, 404);
+});
+
+export { app };
