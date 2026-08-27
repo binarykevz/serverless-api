@@ -1,0 +1,19 @@
+name = "media-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ⚠️ Change this to your actual R2 bucket name
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "your-media-bucket"
+
+[vars]
+R2_PUBLIC_URL = "https://pub-xxxxxxxxxxxxxxxx.r2.dev"
+MAX_IMAGE_SIZE = "10485760"
+MAX_VIDEO_SIZE = "104857600"
+
+# Secrets must be set via `wrangler secret put`
+# - DATABASE_URL
+# - DATABASE_AUTH_TOKEN
+# - ADMIN_API_KEY
