@@ -9,7 +9,7 @@ binding = "R2"
 bucket_name = "your-media-bucket"
 
 [vars]
-R2_PUBLIC_URL = "https://pub-xxxxxxxxxxxxxxxx.r2.dev"
+R2_PUBLIC_URL = "https://pub-2f37483844b0479581f9c0781b7ac6db.r2.dev"
 MAX_IMAGE_SIZE = "10485760"
 MAX_VIDEO_SIZE = "104857600"
 
