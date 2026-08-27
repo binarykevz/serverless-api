@@ -1,54 +1,64 @@
-import { Elysia, t } from 'elysia';
+// src/routes/images.ts
+import { Hono } from 'hono';
+import { z } from 'zod';
+import { zValidator } from '@hono/zod-validator';
 import { adminAuth } from '../middleware/auth';
 import { uploadMedia, deleteMedia, getMedia, listMedia } from '../services/media';
 import { getRandomMedia } from '../services/random';
-import { paginationQuery, randomQuery } from '../utils/validation';
-import { createDb } from '../db/client';
 import type { Env } from '../config/env';
+import { createDb } from '../db/client';
 
-export const images = new Elysia({ prefix: '/api/images' })
-  .derive(({ env }) => ({ db: createDb(env as Env) }))
+const images = new Hono<{ Bindings: Env }>();
 
-  .get('/', async ({ query, db }) => listMedia(db, 'image', query.page, query.pageSize), {
-    query: paginationQuery
-  })
+const paginationSchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  pageSize: z.coerce.number().min(1).max(100).default(20)
+});
 
-  .get('/random', async ({ query, db }) => {
-    const data = await getRandomMedia(db, 'image', query.limit);
-    return { success: true, count: data.length, data };
-  }, {
-    query: randomQuery
-  })
+const randomSchema = z.object({
+  limit: z.coerce.number().min(1).max(50).default(5)
+});
 
-  .get('/:id', async ({ params, db }) => {
-    const data = await getMedia(db, 'image', params.id);
-    return { success: true, data };
-  })
+images.get('/', zValidator('query', paginationSchema, (c) => {
+  const db = createDb(c.env);
+  const { page, pageSize } = c.req.valid('query');
+  return listMedia(db, 'image', page, pageSize);
+}));
 
-  .use(adminAuth)
+images.get('/random', zValidator('query', randomSchema, async (c) => {
+  const db = createDb(c.env);
+  const { limit } = c.req.valid('query');
+  const data = await getRandomMedia(db, 'image', limit);
+  return c.json({ success: true, count: data.length, data });
+}));
 
-  .post('/', async ({ body, env, db }) => {
-    const file = body.file;
-    const originalFilename = file.name || 'upload.bin';
-    const data = await uploadMedia(
-      env as Env,
-      db,
-      'image',
-      file,
-      originalFilename,
-      body.title,
-      body.description
-    );
-    return { success: true, data };
-  }, {
-    body: t.Object({
-      file: t.File(),
-      title: t.Optional(t.String()),
-      description: t.Optional(t.String())
-    })
-  })
+images.get('/:id', async (c) => {
+  const db = createDb(c.env);
+  const id = c.req.param('id');
+  const data = await getMedia(db, 'image', id);
+  return c.json({ success: true, data });
+});
 
-  .delete('/:id', async ({ params, env, db }) => {
-    await deleteMedia(env as Env, db, 'image', params.id);
-    return { success: true, message: 'Image deleted successfully' };
-  });
+images.post('/', adminAuth, async (c) => {
+  const db = createDb(c.env);
+  const body = await c.req.parseBody();
+  const file = body['file'] as File;
+  const title = body['title'] as string | undefined;
+  const description = body['description'] as string | undefined;
+
+  if (!file || !(file instanceof File)) {
+    return c.json({ success: false, error: { code: 'BAD_REQUEST', message: 'No file provided' } }, 400);
+  }
+
+  const data = await uploadMedia(c.env, db, 'image', file, file.name, title, description);
+  return c.json({ success: true, data }, 201);
+});
+
+images.delete('/:id', adminAuth, async (c) => {
+  const db = createDb(c.env);
+  const id = c.req.param('id');
+  await deleteMedia(c.env, db, 'image', id);
+  return c.json({ success: true, message: 'Image deleted successfully' });
+});
+
+export { images };
