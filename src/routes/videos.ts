@@ -1,4 +1,3 @@
-// src/routes/videos.ts
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
@@ -19,18 +18,20 @@ const randomSchema = z.object({
   limit: z.coerce.number().min(1).max(50).default(5)
 });
 
-videos.get('/', zValidator('query', paginationSchema, (c) => {
+// Notice the comma after zValidator(...)
+videos.get('/', zValidator('query', paginationSchema), async (c) => {
   const db = createDb(c.env);
   const { page, pageSize } = c.req.valid('query');
-  return listMedia(db, 'video', page, pageSize);
-}));
+  const result = await listMedia(db, 'video', page, pageSize);
+  return c.json(result);
+});
 
-videos.get('/random', zValidator('query', randomSchema, async (c) => {
+videos.get('/random', zValidator('query', randomSchema), async (c) => {
   const db = createDb(c.env);
   const { limit } = c.req.valid('query');
   const data = await getRandomMedia(db, 'video', limit);
   return c.json({ success: true, count: data.length, data });
-}));
+});
 
 videos.get('/:id', async (c) => {
   const db = createDb(c.env);
